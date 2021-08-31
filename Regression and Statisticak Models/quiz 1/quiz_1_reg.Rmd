@@ -1,0 +1,138 @@
+---
+title: "quiz_1_reg"
+author: "gilay day, michael goldberg"
+date: "31 8 2021"
+output:  
+    rmarkdown::github_document:
+    theme: journal
+    toc: true
+    toc_depth: 3
+    df_print: paged
+        
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, cache=TRUE}
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+knitr::opts_chunk$set(warning=FALSE)
+```
+
+```{r setup, include=FALSE}
+library(dummies)
+library(dplyr)
+library("ggplot2")        
+library("GGally")
+library(corrplot)
+```
+
+# Quiz 1 Question 4 -------------------------------------------------------
+
+
+```{r}
+My_lm <- function(X,Y){
+  #' @param X is matrix with n rows and p+1 columns
+  #' @param Y is vector with length n 
+  
+  # TODO: Complete the code.
+  #       Don't use any external libaries or functions for computing linear models.
+  
+  # 1. Creating a design matrix from X
+  X <- model.matrix(~X)
+  # 1.creating coefficiants  
+  beta_hat <- (solve(t(X)%*%X))%*%t(X)%*%Y
+  # 11. building Y hat according to model
+  Y_hat <- X%*%beta_hat
+  # 8. Building residauls
+  residuals <- Y - Y_hat
+  # 7. dof
+  dof <- nrow(X)-ncol(X)
+  # 5. used above to create sigma hat squared
+  sigma2_hat <- as.numeric((t(residuals)%*%(residuals))/dof)
+  # 2. now able to create covariance matrix for beta
+  beta_cov <- sigma2_hat*(solve(t(X)%*%X))
+  # 3. built T-stat value for each coefficient
+  beta_cov_diag <- diag(beta_cov)
+  T_stat <- t(beta_hat)/sqrt(beta_cov_diag)
+  # 4. built P-value for each coefficient
+  P_Values <- 2*abs(pt(T_stat, dof))
+  # 6. calculated the R squared as SSR/SST
+  R_squared <- (t(Y_hat-mean(Y)))%*%(Y_hat-mean(Y))/(t(Y-mean(Y)))%*%(Y-mean(Y))
+  return(list(beta_hat, beta_cov, T_stat, P_Values, sigma2_hat, R_squared, dof, residuals, X, Y, Y_hat))
+  
+  # Guidelines:
+  # 1. beta_hat is the vector of beta estimators. It should be with same dimension as the column dimension of X
+  # 2. beta_cov is beta covariance matrix estimator. 
+  # 3. T_stat is the vector of T_j statistics under the null hypothesis \beta_j = 0. 
+  #           It should be with same dimension as the column dimension of X
+  # 4. P_values is the vectors of P-Values for testing the same null hypothesis as in 3.
+  # 5. sigma2_hat is the estimator of sigma^2.
+  # 6. R_squared is the R^2, i.e. the proportion of explained variance in the model.
+  # 7. dof is the degree of freedom of the model 
+  # 8. residuals is the vector of e = Y - \hat{Y}. It should be with length n
+  # 9. X is the original X matrix given as input.
+  # 10. Y is the original Y matrix given as input.
+  # 11. Y_hat it the vecotr of \hat{Y}, i.e. the predicted value for each observation. It should be with length n.
+}
+# Section 2
+startups <- read.csv("Startups.csv")
+# i) descriptive
+summary(startups)
+# ii) Histogram + explanation
+hist(startups[,"Profit"],breaks=20, main = paste("Histogram of Profit"))
+# The distribution of Profit is with a fat right tail, most of the observations are to
+# greater (to the right of) than the mean.
+# iii) scatter plots of variables vs profit + correlations
+#R.D.Spend 
+plot(startups[,"R.D.Spend"], startups[,"Profit"], main="R.D.Spend vs Profit",
+     xlab="R.D.Spend", ylab="Profit")
+cor(startups[,"R.D.Spend"], startups[,"Profit"])
+#Administration
+plot(startups[,"Administration"], startups[,"Profit"], main="Administration vs Profit",
+     xlab="Administration", ylab="Profit")
+cor(startups[,"Administration"], startups[,"Profit"])
+#Marketing.Spend
+plot(startups[,"Marketing.Spend"], startups[,"Profit"], main="Marketing.Spend vs Profit",
+     xlab="Marketing.Spend", ylab="Profit")
+cor(startups[,"Marketing.Spend"], startups[,"Profit"])
+
+dummyf.1 <- as.numeric(startups$State=='New York')
+dummyf.2 <- as.numeric(startups$State=='California')
+dummyf.3 <- as.numeric(startups$State=='Florida')
+# We chose New York to be the reference variable and set up our matrix
+X.data <- data.matrix(cbind(startups[1:3],dummyf.2,dummyf.3))
+# Ran matrix through function
+model <- My_lm(X.data, startups[,"Profit"])
+# Pulled the returned beta_hat coefficients.
+su_beta_hat <- data.matrix(model[[1]])
+# Pulled the returned T_stats.
+T_tests <- data.matrix(model[[3]])
+#Pulled the returned covariance matrix for beta
+beta_cov <- data.matrix(model[[2]])
+#Extracted the diagonal values, the variance of the coefficients
+beta_cov_diag <- data.matrix(diag(beta_cov)) 
+#multiplied the SD for each beta with the relevant t-distribution.
+CI.help <- ((beta_cov_diag)^0.5)*qt(0.975,30)
+#created two vectors for lower/upper limits of CI
+l.CI <- su_beta_hat - CI.help
+u.CI <- su_beta_hat + CI.help
+# We applied the T-test and we will reject all Bj with TRUE values.
+# In this case we will reject that the intercept & R.D.spend coefficients are equal to zero 
+reject <- abs(T_tests) - qt(0.975,30) >= 0
+
+
+# Section 3
+startups_test <- read.csv("Startups_test.csv")
+dummyftest.1 <- as.numeric(startups_test$State=='New York')
+dummyftest.2 <- as.numeric(startups_test$State=='California')
+dummyftest.3 <- as.numeric(startups_test$State=='Florida')
+# We chose New York to be the reference variable and set up our matrix
+X.data3 <- data.matrix(cbind(startups_test[1:3],dummyftest.2,dummyftest.3))
+# Ran matrix through function
+model3 <- My_lm(X.data3, startups_test[,"Profit"])
+Y_hat3 <- data.matrix(model3[[11]])
+#Calculated the MSE by formula, the RMSE is ~6210 dollars of profit for every Y_hat value. 
+RMSE <- ((1/nrow(startups_test))*(t(startups_test[,"Profit"]-Y_hat3)%*%(startups_test[,"Profit"]-Y_hat3)))^0.5
+```
