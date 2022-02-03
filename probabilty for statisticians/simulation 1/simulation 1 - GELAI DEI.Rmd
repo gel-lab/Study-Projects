@@ -1,0 +1,24 @@
+---
+title: "simulation 1"
+author: "GELAI DEI"
+date: "3 2 2022"
+output: rmarkdown::github_document
+---
+
+## QUES 1
+```{r}
+ex1q1 <- function(n, prob){
+  q <- 1-prob
+  U <- runif(n)
+  X = ceiling(log(U)/log(q))
+  return(X)
+}
+```
+
+## QUES 2
+```{r}
+ex1q2 <- function(n, k, th){
+  hofhci_X <- (1-(1+th)^(-k))
+  dens_hofchit <- ((1-runif(n)*hofhci_X)^(-1/k)-1)
+  return(dens_hofchit)
+}
